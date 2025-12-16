@@ -1,0 +1,550 @@
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Switch,
+  Platform,
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useState } from "react";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { Image as ImageIcon, Trash2 } from "lucide-react-native";
+import { useTeams } from "@/contexts/TeamsContext";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
+
+export default function AthleteDetailScreen() {
+  const { athleteId, teamId } = useLocalSearchParams<{ athleteId: string; teamId: string }>();
+  const router = useRouter();
+  const { getTeam, updateAthlete, deleteAthlete } = useTeams();
+
+  const team = getTeam(teamId!);
+  const athlete = team?.athletes.find((a) => a.id === athleteId);
+
+  const [formData, setFormData] = useState({
+    firstName: athlete?.firstName || "",
+    lastName: athlete?.lastName || "",
+    medicalCertExpiry: athlete?.medicalCertExpiry || "",
+    phone: athlete?.phone || "",
+    shirtSize: athlete?.shirtSize || "",
+    shortsSize: athlete?.shortsSize || "",
+    role: athlete?.role || "",
+    selfCertExpiry: athlete?.selfCertExpiry || "",
+    idCardNumber: athlete?.idCardNumber || "",
+    idCardImage: athlete?.idCardImage || "",
+    fiscalCode: athlete?.fiscalCode || "",
+    fiscalCodeImage: athlete?.fiscalCodeImage || "",
+    jerseyNumber: athlete?.jerseyNumber || "",
+    matricola: athlete?.matricola || "",
+    birthDate: athlete?.birthDate || "",
+    isMember: athlete?.isMember || false,
+    hasPaid: athlete?.hasPaid || false,
+  });
+
+  const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+
+  if (!team || !athlete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>Atleta non trovato</Text>
+      </View>
+    );
+  }
+
+  const handleSave = () => {
+    updateAthlete(teamId!, athleteId!, formData);
+    router.back();
+  };
+
+  const handleDelete = () => {
+    deleteAthlete(teamId!, athleteId!);
+    router.back();
+  };
+
+  const pickImage = async (field: 'idCardImage' | 'fiscalCodeImage') => {
+    if (Platform.OS === 'web') {
+      alert('La selezione di immagini non è disponibile su web');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images as any,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setFormData({ ...formData, [field]: result.assets[0].uri });
+    }
+  };
+
+  const updateField = (field: string, value: any) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const formatDateToDDMMYYYY = (dateStr: string) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const handleDateChange = (field: string, selectedDate?: Date) => {
+    if (selectedDate) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
+      updateField(field, `${year}-${month}-${day}`);
+    }
+    setShowDatePicker(null);
+  };
+
+  const getDateForPicker = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? new Date() : date;
+  };
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: `${athlete.firstName} ${athlete.lastName}`,
+          headerShown: true,
+        }}
+      />
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Informazioni Base</Text>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Nome</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.firstName}
+              onChangeText={(text) => updateField("firstName", text)}
+              placeholder="Nome"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Cognome</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.lastName}
+              onChangeText={(text) => updateField("lastName", text)}
+              placeholder="Cognome"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              Cellulare <Text style={styles.labelHint}>(tap per chiamare)</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={formData.phone}
+              onChangeText={(text) => updateField("phone", text)}
+              placeholder="+39 123 456 7890"
+              placeholderTextColor="#9ca3af"
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Data di Nascita</Text>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker("birthDate")}
+            >
+              <Text style={formData.birthDate ? styles.dateText : styles.datePlaceholder}>
+                {formData.birthDate ? formatDateToDDMMYYYY(formData.birthDate) : "Seleziona data"}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker === "birthDate" && (
+              <DateTimePicker
+                value={getDateForPicker(formData.birthDate)}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, date) => handleDateChange("birthDate", date)}
+              />
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Ruolo</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.role}
+              onChangeText={(text) => updateField("role", text)}
+              placeholder="Es. Attaccante"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Abbigliamento</Text>
+
+          <View style={styles.row}>
+            <View style={[styles.field, styles.halfField]}>
+              <Text style={styles.label}>Taglia Maglia</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.shirtSize}
+                onChangeText={(text) => updateField("shirtSize", text)}
+                placeholder="M"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+
+            <View style={[styles.field, styles.halfField]}>
+              <Text style={styles.label}>Taglia Calzone</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.shortsSize}
+                onChangeText={(text) => updateField("shortsSize", text)}
+                placeholder="M"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Numero Maglia</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.jerseyNumber}
+              onChangeText={(text) => updateField("jerseyNumber", text)}
+              placeholder="10"
+              placeholderTextColor="#9ca3af"
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Documenti e Certificati</Text>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Scadenza Cert. Medico</Text>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker("medicalCertExpiry")}
+            >
+              <Text style={formData.medicalCertExpiry ? styles.dateText : styles.datePlaceholder}>
+                {formData.medicalCertExpiry ? formatDateToDDMMYYYY(formData.medicalCertExpiry) : "Seleziona data"}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker === "medicalCertExpiry" && (
+              <DateTimePicker
+                value={getDateForPicker(formData.medicalCertExpiry)}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, date) => handleDateChange("medicalCertExpiry", date)}
+              />
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Scadenza Autocertificazione</Text>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker("selfCertExpiry")}
+            >
+              <Text style={formData.selfCertExpiry ? styles.dateText : styles.datePlaceholder}>
+                {formData.selfCertExpiry ? formatDateToDDMMYYYY(formData.selfCertExpiry) : "Seleziona data"}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker === "selfCertExpiry" && (
+              <DateTimePicker
+                value={getDateForPicker(formData.selfCertExpiry)}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(event, date) => handleDateChange("selfCertExpiry", date)}
+              />
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Carta d&apos;Identità</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.idCardNumber}
+              onChangeText={(text) => updateField("idCardNumber", text)}
+              placeholder="Numero documento"
+              placeholderTextColor="#9ca3af"
+            />
+            {formData.idCardImage ? (
+              <View style={styles.imagePreview}>
+                <Image source={{ uri: formData.idCardImage }} style={styles.image} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => updateField("idCardImage", "")}
+                >
+                  <Trash2 size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.imageButton}
+                onPress={() => pickImage("idCardImage")}
+              >
+                <ImageIcon size={20} color="#2563eb" />
+                <Text style={styles.imageButtonText}>Allega immagine</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Codice Fiscale</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.fiscalCode}
+              onChangeText={(text) => updateField("fiscalCode", text.toUpperCase())}
+              placeholder="RSSMRA80A01H501U"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="characters"
+            />
+            {formData.fiscalCodeImage ? (
+              <View style={styles.imagePreview}>
+                <Image source={{ uri: formData.fiscalCodeImage }} style={styles.image} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => updateField("fiscalCodeImage", "")}
+                >
+                  <Trash2 size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.imageButton}
+                onPress={() => pickImage("fiscalCodeImage")}
+              >
+                <ImageIcon size={20} color="#2563eb" />
+                <Text style={styles.imageButtonText}>Allega immagine</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Matricola</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.matricola}
+              onChangeText={(text) => updateField("matricola", text)}
+              placeholder="Numero matricola"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Stato</Text>
+
+          <View style={styles.switchField}>
+            <Text style={styles.label}>Tesseramento</Text>
+            <Switch
+              value={formData.isMember}
+              onValueChange={(value) => updateField("isMember", value)}
+              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+              thumbColor={formData.isMember ? "#2563eb" : "#f3f4f6"}
+            />
+          </View>
+
+          <View style={styles.switchField}>
+            <Text style={styles.label}>Iscrizione Pagata</Text>
+            <Switch
+              value={formData.hasPaid}
+              onValueChange={(value) => updateField("hasPaid", value)}
+              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+              thumbColor={formData.hasPaid ? "#2563eb" : "#f3f4f6"}
+            />
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+          <Trash2 size={20} color="#ef4444" />
+          <Text style={styles.deleteButtonText}>Elimina Atleta</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>Salva Modifiche</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f3f4f6",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: "#111827",
+    marginBottom: 16,
+  },
+  field: {
+    marginBottom: 16,
+  },
+  halfField: {
+    flex: 1,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#374151",
+    marginBottom: 8,
+  },
+  labelHint: {
+    fontSize: 12,
+    fontWeight: "400" as const,
+    color: "#9ca3af",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: "#111827",
+    backgroundColor: "#fff",
+  },
+  switchField: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  imageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    borderRadius: 8,
+    borderStyle: "dashed",
+    marginTop: 8,
+  },
+  imageButtonText: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#2563eb",
+  },
+  imagePreview: {
+    marginTop: 8,
+    position: "relative",
+  },
+  image: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#ef4444",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: "#ef4444",
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#ef4444",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  saveButton: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: "#fff",
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: "#fff",
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#111827",
+  },
+  datePlaceholder: {
+    fontSize: 16,
+    color: "#9ca3af",
+  },
+});
