@@ -8,11 +8,13 @@
     "scheme": "rork-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.rork.sport-teams-manager",
@@ -22,6 +24,7 @@
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
       }
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -34,9 +37,11 @@
         "WRITE_EXTERNAL_STORAGE"
       ]
     },
+
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
+
     "plugins": [
       [
         "expo-router",
@@ -53,8 +58,15 @@
         }
       ]
     ],
+
     "experiments": {
       "typedRoutes": true
+    },
+
+    "extra": {
+      "eas": {
+        "projectId": "f948d045-dbe4-40de-b378-2323a5d83aa0"
+      }
     }
   }
 }
